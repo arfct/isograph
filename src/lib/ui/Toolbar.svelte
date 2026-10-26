@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ui, setTool, setShape, clearDoc, doc } from '$lib/state.svelte';
 	import { SHAPES, SHAPE_KEYS, type Tool } from '$lib/model';
+	import { downloadDoc } from '$lib/export';
 	import Icon from './Icon.svelte';
 
 	const tools: { id: Tool; label: string; key?: string }[] = [
@@ -68,6 +69,14 @@
 		<Icon name={copied ? 'check' : 'share'} /><span class="label"
 			>{copied ? 'Copied' : 'Share'}</span
 		>
+	</button>
+	<button
+		class="btn"
+		title="Download the scene as JSON"
+		disabled={isEmpty}
+		onclick={() => downloadDoc(doc)}
+	>
+		<Icon name="download" /><span class="label">Export</span>
 	</button>
 	<button class="btn" class:danger={confirmClear} disabled={isEmpty} onclick={clear}>
 		<Icon name="trash" /><span class="label">{confirmClear ? 'Sure?' : 'Clear'}</span>

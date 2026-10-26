@@ -18,6 +18,7 @@ import minus from 'heroicons/24/outline/minus.svg?raw';
 import questionMarkCircle from 'heroicons/24/outline/question-mark-circle.svg?raw';
 import xMark from 'heroicons/24/outline/x-mark.svg?raw';
 import arrowsRightLeft from 'heroicons/24/outline/arrows-right-left.svg?raw';
+import arrowDownTray from 'heroicons/24/outline/arrow-down-tray.svg?raw';
 
 // Shape glyphs drawn in the same 24px outline style as the Heroicons above.
 const svg = (body: string) =>
@@ -53,6 +54,7 @@ export const icons = {
 	help: questionMarkCircle,
 	close: xMark,
 	swap: arrowsRightLeft,
+	download: arrowDownTray,
 	box: cube,
 	cylinder,
 	sphere,
