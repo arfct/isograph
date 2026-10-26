@@ -4,11 +4,23 @@
 	"private": true,
 	"type": "module",
 	"description": "A 3D viewer and editor for simple primitive isometric diagrams",
+	"devEngines": {
+		"runtime": {
+			"name": "node",
+			"version": "^24",
+			"onFail": "error"
+		},
+		"packageManager": {
+			"name": "pnpm",
+			"version": "^12.15.0",
+			"onFail": "error"
+		}
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
-		"preview": "npm run build && wrangler dev",
-		"deploy": "npm run build && wrangler deploy",
+		"preview": "pnpm build && wrangler dev",
+		"deploy": "pnpm build && wrangler deploy",
 		"prepare": "svelte-kit sync || echo ''",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
@@ -45,9 +57,5 @@
 		"vite": "^8.3.0",
 		"vitest": "^4.1.11",
 		"wrangler": "^4.152.0"
-	},
-	"allowScripts": {
-		"esbuild@0.28.2": true,
-		"workerd@1.20261019.1": true
 	}
 }

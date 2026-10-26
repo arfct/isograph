@@ -14,7 +14,10 @@ export default defineConfig({
 			},
 			adapter: adapter()
 		})
-	],
+  ],
+  server: {
+    port: 14000
+	},
 	test: {
 		expect: { requireAssertions: true },
 		environment: 'node',

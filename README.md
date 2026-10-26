@@ -30,8 +30,8 @@ pnpm install
 pnpm run dev
 ```
 
-| Script              | What it does                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------- |
+| Script               | What it does                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------- |
 | `pnpm run dev`       | Vite dev server with hot reload                                                    |
 | `pnpm run build`     | Production build via `@sveltejs/adapter-cloudflare` into `.svelte-kit/cloudflare/` |
 | `pnpm run preview`   | Build, then serve it in the local Workers runtime (`wrangler dev`)                 |
@@ -42,8 +42,10 @@ pnpm run dev
 | `pnpm run typecheck` | `svelte-check`                                                                     |
 | `pnpm test`          | Vitest                                                                             |
 
-npm 11 blocks dependency install scripts by default; `esbuild` and `workerd` are approved in
-`package.json` so their binaries install.
+`package.json` pins the toolchain in `devEngines`: Node 24 and pnpm 12. npm and pnpm both refuse
+to run under anything else. pnpm only runs dependency build scripts that are listed in
+`allowBuilds` in `pnpm-workspace.yaml`; `esbuild` and `workerd` are allowed there so their
+binaries install.
 
 ## Stack
 
@@ -62,7 +64,7 @@ separate `svelte.config.js`.
 
 Formatting and linting use Prettier + ESLint (the SvelteKit defaults), not Biome. This departs
 from the Primer; see below. `biome.json` is kept with the same style as Prettier (tabs, single
-quotes, no trailing commas), so `npm run biome` shows how far the code is from switching.
+quotes, no trailing commas), so `pnpm run biome` shows how far the code is from switching.
 Today its lint rules pass. The only differences are formatting in Svelte markup, HTML and CSS,
 where Biome's support is still experimental.
 
@@ -80,7 +82,7 @@ temporary; they are listed here so nobody has to rediscover them.
 - **Prettier + ESLint instead of Biome.** The Primer asks for Biome alone
   ([standards](https://github.com/arfct/ops/blob/main/primer/standards.md#formatting--linting)),
   but Biome's Svelte support is experimental: it formats only `<script>` blocks by default, and
-  its full-file mode lays markup out inconsistently. Switch once `npm run biome` is clean
+  its full-file mode lays markup out inconsistently. Switch once `pnpm run biome` is clean
   under `biome check --write` without hand fixes.
 - **No remote, no PRs.** The Primer requires branching off `main` with Linear-derived branch
   names and landing every change through a PR
@@ -94,11 +96,11 @@ temporary; they are listed here so nobody has to rediscover them.
 - **No CI.** The Primer expects `biome check` to run as its own CI step, and warns that a repo
   without it "drifts silently"
   ([standards](https://github.com/arfct/ops/blob/main/primer/standards.md#formatting--linting)).
-  Until then `npm run check`, `npm run typecheck` and `npm test` are habit, not enforcement.
+  Until then `pnpm run lint`, `pnpm run typecheck` and `pnpm test` are habit, not enforcement.
 - **No Linear project or issues.** Work tracking lives in the `arfct` Linear workspace
   ([linear](https://github.com/arfct/ops/blob/main/primer/linear.md)); nothing has been filed
   for this project yet.
-- **Not deployed yet.** `npm run deploy` exists (Cloudflare Workers, per
+- **Not deployed yet.** `pnpm run deploy` exists (Cloudflare Workers, per
   [deployment](https://github.com/arfct/ops/blob/main/primer/deployment.md)), but it hasn't
   been run, and the repo isn't in the primer's deployment table.
 
