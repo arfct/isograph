@@ -1,6 +1,8 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "isograph",
+	// Artifact account; set explicitly because most logins can see several accounts.
+	"account_id": "c0912e10eadeaa117b0067ab29b55da6",
 	// The worker and assets are both emitted by @sveltejs/adapter-cloudflare during `vite build`.
 	"main": ".svelte-kit/cloudflare/_worker.js",
 	"compatibility_date": "2026-10-01",

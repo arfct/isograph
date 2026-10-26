@@ -73,8 +73,9 @@ still experimental, plus a handful of lint findings in code kept verbatim from i
 
 ## Status
 
-Migrated from `liquidx-isograph`, which deployed to Vercel. Works locally under
-`wrangler dev`; not yet deployed — no Cloudflare account, route or domain is configured.
+Migrated from `liquidx-isograph`, which deployed to Vercel. Deployed with `pnpm run deploy` to
+the `isograph` Worker on the Artifact Cloudflare account (`account_id` is pinned in
+`wrangler.jsonc`), served at <https://isograph.arfct.workers.dev>. No custom domain yet.
 
 ## Deviations from the Artifact Primer
 
@@ -103,9 +104,11 @@ temporary; they are listed here so nobody has to rediscover them.
 - **No Linear project or issues.** Work tracking lives in the `arfct` Linear workspace
   ([linear](https://github.com/arfct/ops/blob/main/primer/linear.md)); nothing has been filed
   for this project yet.
-- **Not deployed yet.** `pnpm run deploy` exists (Cloudflare Workers, per
-  [deployment](https://github.com/arfct/ops/blob/main/primer/deployment.md)), but it hasn't
-  been run, and the repo isn't in the primer's deployment table.
+- **Deploys from a laptop, no CI gate.** `pnpm run deploy` ships whatever is checked out; there
+  is no GitHub Actions run to check first
+  ([deployment](https://github.com/arfct/ops/blob/main/primer/deployment.md#dont-deploy-past-a-red-ci)),
+  so run `pnpm test` and `pnpm run typecheck` before deploying. The Worker isn't yet listed in
+  `arfct/internal`'s `deployments.md`.
 
 ## License
 
