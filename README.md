@@ -75,7 +75,10 @@ still experimental, plus a handful of lint findings in code kept verbatim from i
 
 Migrated from `liquidx-isograph`, which deployed to Vercel. Deployed with `pnpm run deploy` to
 the `isograph` Worker on the Artifact Cloudflare account (`account_id` is pinned in
-`wrangler.jsonc`), served at <https://isograph.arfct.workers.dev>. No custom domain yet.
+`wrangler.jsonc`), served at <https://isograph.fyi> (a Workers custom domain, so Cloudflare
+manages its DNS record and certificate) and still at <https://isograph.arfct.workers.dev>.
+`www.isograph.fyi` 301s to the bare domain through a Redirect Rule on the `isograph.fyi` zone,
+which is configured in the dashboard, not in this repo.
 
 ## Deviations from the Artifact Primer
 
