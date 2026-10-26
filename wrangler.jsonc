@@ -5,6 +5,8 @@
 	"account_id": "c0912e10eadeaa117b0067ab29b55da6",
 	// The worker and assets are both emitted by @sveltejs/adapter-cloudflare during `vite build`.
 	"main": ".svelte-kit/cloudflare/_worker.js",
+	// The bare domain serves the app; www 301s to it via a Redirect Rule on the isograph.fyi zone.
+	"routes": [{ "pattern": "isograph.fyi", "custom_domain": true }],
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_als"],
 	"assets": {
