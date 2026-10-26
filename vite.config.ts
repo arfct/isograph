@@ -14,9 +14,9 @@ export default defineConfig({
 			},
 			adapter: adapter()
 		})
-  ],
-  server: {
-    port: 14000
+	],
+	server: {
+		port: 14000
 	},
 	test: {
 		expect: { requireAssertions: true },

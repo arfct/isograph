@@ -1,51 +1,44 @@
 <script lang="ts">
+	import { doc, rotateBy, elevateBy, zoomBy, resetCamera } from '$lib/state.svelte';
 	import { MAX_EL, MIN_EL } from '$lib/model';
-	import { doc, elevateBy, resetCamera, rotateBy, zoomBy } from '$lib/state.svelte';
 	import Icon from './Icon.svelte';
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- biome-ignore lint/a11y/noStaticElementInteractions: mousedown only stops the panel stealing focus from the canvas -->
 <div class="panel camera" onmousedown={(e) => e.preventDefault()}>
-	<button type="button" class="btn icon" title="Rotate left (Q)" onclick={() => rotateBy(1)}>
-		<Icon name="rotate-left" />
-	</button>
+	<button class="btn icon" title="Rotate left (Q)" onclick={() => rotateBy(1)}
+		><Icon name="rotate-left" /></button
+	>
 	<span class="readout">{doc.camera.az}°</span>
-	<button type="button" class="btn icon" title="Rotate right (E)" onclick={() => rotateBy(-1)}>
-		<Icon name="rotate-right" />
-	</button>
+	<button class="btn icon" title="Rotate right (E)" onclick={() => rotateBy(-1)}
+		><Icon name="rotate-right" /></button
+	>
 	<span class="divider"></span>
 	<button
-		type="button"
 		class="btn icon"
 		title="Lower view"
 		disabled={doc.camera.el <= MIN_EL}
-		onclick={() => elevateBy(-1)}
+		onclick={() => elevateBy(-1)}><Icon name="chevron-down" /></button
 	>
-		<Icon name="chevron-down" />
-	</button>
 	<span class="readout">{doc.camera.el}°</span>
 	<button
-		type="button"
 		class="btn icon"
 		title="Raise view"
 		disabled={doc.camera.el >= MAX_EL}
-		onclick={() => elevateBy(1)}
+		onclick={() => elevateBy(1)}><Icon name="chevron-up" /></button
 	>
-		<Icon name="chevron-up" />
-	</button>
 	<span class="divider"></span>
-	<button type="button" class="btn icon" title="Zoom out (-)" onclick={() => zoomBy(0.8)}>
-		<Icon name="zoom-out" />
-	</button>
+	<button class="btn icon" title="Zoom out (-)" onclick={() => zoomBy(0.8)}
+		><Icon name="zoom-out" /></button
+	>
 	<span class="readout">{Math.round(doc.camera.zoom * 100)}%</span>
-	<button type="button" class="btn icon" title="Zoom in (+)" onclick={() => zoomBy(1.25)}>
-		<Icon name="zoom-in" />
-	</button>
+	<button class="btn icon" title="Zoom in (+)" onclick={() => zoomBy(1.25)}
+		><Icon name="zoom-in" /></button
+	>
 	<span class="divider"></span>
-	<button type="button" class="btn" title="Reset view" onclick={resetCamera}>
-		<Icon name="reset" /><span class="label">Reset</span>
-	</button>
+	<button class="btn" title="Reset view" onclick={resetCamera}
+		><Icon name="reset" /><span class="label">Reset</span></button
+	>
 </div>
 
 <style>

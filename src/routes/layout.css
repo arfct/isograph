@@ -131,7 +131,6 @@ input {
 	border-radius: 4px;
 	overflow: hidden;
 }
-/* biome-ignore lint/style/noDescendingSpecificity: .stepper and .seg buttons never overlap */
 .stepper .btn {
 	border-radius: 0;
 	height: 26px;

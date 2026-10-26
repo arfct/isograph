@@ -1,39 +1,50 @@
 <script lang="ts">
-	import { toggleHelp, ui } from '$lib/state.svelte';
+	import { ui, toggleHelp } from '$lib/state.svelte';
 	import Icon from './Icon.svelte';
 
 	type Row = { keys: string[]; label: string };
 	type Group = { title: string; rows: Row[] };
+
+	const mod =
+		typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
 
 	const groups: Group[] = [
 		{
 			title: 'Tools',
 			rows: [
 				{ keys: ['V'], label: 'Select' },
-				{ keys: ['B'], label: 'Block' },
 				{ keys: ['P'], label: 'Plane' },
 				{ keys: ['L'], label: 'Link' },
+				{ keys: ['Shift', 'Click'], label: 'Keep adding shapes / planes' },
 				{ keys: ['Esc'], label: 'Back to select / deselect' }
+			]
+		},
+		{
+			title: 'Shapes',
+			rows: [
+				{ keys: ['B'], label: 'Box' },
+				{ keys: ['C'], label: 'Cylinder' },
+				{ keys: ['S'], label: 'Sphere' },
+				{ keys: ['Y'], label: 'Pyramid' }
+			]
+		},
+		{
+			title: 'Edit',
+			rows: [
+				{ keys: [mod, 'Z'], label: 'Undo' },
+				{ keys: [mod, 'Shift', 'Z'], label: 'Redo' },
+				{ keys: [mod, 'C'], label: 'Copy selection' },
+				{ keys: [mod, 'V'], label: 'Paste' },
+				{ keys: ['↑', '↓', '←', '→'], label: 'Nudge selection one cell' },
+				{ keys: ['⌫'], label: 'Delete selection' }
 			]
 		},
 		{
 			title: 'Camera',
 			rows: [
-				{ keys: ['Drag'], label: 'Pan the floor' },
-				{ keys: ['Space', 'Drag'], label: 'Pan from anywhere' },
-				{ keys: ['Wheel'], label: 'Zoom' },
+				{ keys: ['Q', 'E'], label: 'Rotate left / right' },
 				{ keys: ['+', '−'], label: 'Zoom in / out' },
-				{ keys: ['Right-drag'], label: 'Rotate' },
-				{ keys: ['Q', 'E'], label: 'Rotate left / right' }
-			]
-		},
-		{
-			title: 'Selection',
-			rows: [
-				{ keys: ['↑', '↓', '←', '→'], label: 'Nudge one cell' },
-				{ keys: ['Drag corner'], label: 'Resize' },
-				{ keys: ['Drag pyramid'], label: 'Set block height' },
-				{ keys: ['⌫'], label: 'Delete' }
+				{ keys: ['Space', 'Drag'], label: 'Pan from anywhere' }
 			]
 		},
 		{
@@ -48,7 +59,6 @@
 		<div class="head">
 			<span class="title">Keyboard shortcuts</span>
 			<button
-				type="button"
 				class="btn icon"
 				title="Close (Esc)"
 				aria-label="Close"
@@ -65,9 +75,7 @@
 						<div class="row">
 							<span class="keys">
 								{#each r.keys as k, i (k)}
-									{#if i > 0}
-										<span class="sep">·</span>
-									{/if}
+									{#if i > 0}<span class="sep">·</span>{/if}
 									<kbd>{k}</kbd>
 								{/each}
 							</span>

@@ -1,19 +1,27 @@
 import {
-	type Block,
-	clamp,
+	ANCHORS,
+	BENDS,
+	DASHES,
 	DEFAULT_LABEL_SIZE,
-	type Doc,
-	defaultCamera,
+	DENSITIES,
+	DIRECTIONS,
 	EDGES,
-	type Link,
+	HATCHES,
+	LINK_STYLES,
 	MAX_LABEL_SIZE,
 	MIN_LABEL_SIZE,
 	PALETTE,
-	type Plane,
-	SHADES
+	SHADES,
+	SHAPES,
+	clamp,
+	defaultCamera,
+	type Block,
+	type Doc,
+	type Link,
+	type Plane
 } from './model';
 
-const VERSION = 1;
+const VERSION = 2;
 
 function toBase64Url(s: string): string {
 	const bytes = new TextEncoder().encode(s);
@@ -52,10 +60,36 @@ export function encodeDoc(doc: Doc): string {
 			SHADES.indexOf(b.shade),
 			EDGES.indexOf(b.edge),
 			b.label,
-			r1(b.labelSize)
+			r1(b.labelSize),
+			SHAPES.indexOf(b.shape),
+			HATCHES.indexOf(b.hatch),
+			DENSITIES.indexOf(b.density)
 		]),
-		p: doc.planes.map((p) => [p.id, p.x, p.y, p.w, p.h, p.color]),
-		l: doc.links.map((l) => [l.id, l.a, l.b])
+		p: doc.planes.map((p) => [
+			p.id,
+			p.x,
+			p.y,
+			p.w,
+			p.h,
+			p.color,
+			EDGES.indexOf(p.edge),
+			p.label,
+			r1(p.labelSize)
+		]),
+		l: doc.links.map((l) => [
+			l.id,
+			l.a,
+			l.b,
+			LINK_STYLES.indexOf(l.style),
+			DASHES.indexOf(l.dash),
+			ANCHORS.indexOf(l.from),
+			ANCHORS.indexOf(l.to),
+			l.label,
+			r1(l.labelSize),
+			DIRECTIONS.indexOf(l.direction),
+			l.animated ? 1 : 0,
+			BENDS.indexOf(l.bend)
+		])
 	};
 	return toBase64Url(JSON.stringify(payload));
 }
@@ -64,6 +98,11 @@ const int = (v: unknown, fallback = 0) =>
 	typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : fallback;
 const num = (v: unknown, fallback = 0) =>
 	typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+const str = (v: unknown) => (typeof v === 'string' ? v : '');
+const labelSize = (v: unknown) => clamp(num(v, DEFAULT_LABEL_SIZE), MIN_LABEL_SIZE, MAX_LABEL_SIZE);
+function pick<T>(list: T[], v: unknown, fallback: T): T {
+	return list[int(v, -1)] ?? fallback;
+}
 
 export function decodeDoc(hash: string): Doc | null {
 	try {
@@ -86,10 +125,13 @@ export function decodeDoc(hash: string): Doc | null {
 				size: Math.max(1, int(a[3], 1)),
 				height: Math.max(1, int(a[4], 1)),
 				color: clamp(int(a[5]), 0, PALETTE.length - 1),
-				shade: SHADES[int(a[6])] ?? 'flat',
-				edge: EDGES[int(a[7])] ?? 'S',
-				label: typeof a[8] === 'string' ? a[8] : '',
-				labelSize: clamp(num(a[9], DEFAULT_LABEL_SIZE), MIN_LABEL_SIZE, MAX_LABEL_SIZE)
+				shade: pick(SHADES, a[6], 'flat'),
+				edge: pick(EDGES, a[7], 'S'),
+				label: str(a[8]),
+				labelSize: labelSize(a[9]),
+				shape: pick(SHAPES, a[10], 'box'),
+				hatch: pick(HATCHES, a[11], 'diagonal'),
+				density: pick(DENSITIES, a[12], 'medium')
 			}));
 		const planes: Plane[] = (Array.isArray(raw.p) ? raw.p : [])
 			.filter(Array.isArray)
@@ -99,12 +141,28 @@ export function decodeDoc(hash: string): Doc | null {
 				y: int(a[2]),
 				w: Math.max(1, int(a[3], 1)),
 				h: Math.max(1, int(a[4], 1)),
-				color: clamp(int(a[5]), 0, PALETTE.length - 1)
+				color: clamp(int(a[5]), 0, PALETTE.length - 1),
+				edge: pick(EDGES, a[6], 'S'),
+				label: str(a[7]),
+				labelSize: labelSize(a[8])
 			}));
 		const ids = new Set(blocks.map((b) => b.id));
 		const links: Link[] = (Array.isArray(raw.l) ? raw.l : [])
 			.filter(Array.isArray)
-			.map((a: unknown[]) => ({ id: int(a[0]), a: int(a[1]), b: int(a[2]) }))
+			.map((a: unknown[]) => ({
+				id: int(a[0]),
+				a: int(a[1]),
+				b: int(a[2]),
+				style: pick(LINK_STYLES, a[3], 'elbow'),
+				dash: pick(DASHES, a[4], 'solid'),
+				from: pick(ANCHORS, a[5], 'C'),
+				to: pick(ANCHORS, a[6], 'C'),
+				label: str(a[7]),
+				labelSize: labelSize(a[8]),
+				direction: pick(DIRECTIONS, a[9], 'none'),
+				animated: a[10] === 1,
+				bend: pick(BENDS, a[11], 'x')
+			}))
 			.filter((l: Link) => ids.has(l.a) && ids.has(l.b) && l.a !== l.b);
 		return { blocks, planes, links, camera: cam };
 	} catch {

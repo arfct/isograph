@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Scene from '$lib/scene/Scene.svelte';
-	import { doc, loadDoc } from '$lib/state.svelte';
-	import BottomBar from '$lib/ui/BottomBar.svelte';
-	import CameraBar from '$lib/ui/CameraBar.svelte';
-	import HelpPane from '$lib/ui/HelpPane.svelte';
-	import Inspector from '$lib/ui/Inspector.svelte';
 	import Toolbar from '$lib/ui/Toolbar.svelte';
+	import Inspector from '$lib/ui/Inspector.svelte';
+	import CameraBar from '$lib/ui/CameraBar.svelte';
+	import BottomBar from '$lib/ui/BottomBar.svelte';
+	import HelpPane from '$lib/ui/HelpPane.svelte';
+	import Toast from '$lib/ui/Toast.svelte';
+	import { doc, loadDoc } from '$lib/state.svelte';
+	import { resetHistory, trackHistory } from '$lib/history.svelte';
 	import { decodeDoc, encodeDoc } from '$lib/url';
 
 	let lastHash = '';
+
+	trackHistory();
 
 	onMount(() => {
 		const read = () => {
@@ -20,6 +24,7 @@
 			if (d) {
 				lastHash = h;
 				loadDoc(d);
+				resetHistory();
 			}
 		};
 		read();
@@ -32,7 +37,7 @@
 		const t = setTimeout(() => {
 			if (enc === lastHash) return;
 			lastHash = enc;
-			history.replaceState(null, '', enc ? `#${enc}` : location.pathname + location.search);
+			history.replaceState(null, '', enc ? '#' + enc : location.pathname + location.search);
 		}, 200);
 		return () => clearTimeout(t);
 	});
@@ -45,6 +50,7 @@
 	<CameraBar />
 	<BottomBar />
 	<HelpPane />
+	<Toast />
 </main>
 
 <style>
