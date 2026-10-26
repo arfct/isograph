@@ -26,21 +26,21 @@ A 3D viewer and editor for simple primitive isometric diagrams on the web.
 ## Run it
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 | Script              | What it does                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------- |
-| `npm run dev`       | Vite dev server with hot reload                                                    |
-| `npm run build`     | Production build via `@sveltejs/adapter-cloudflare` into `.svelte-kit/cloudflare/` |
-| `npm run preview`   | Build, then serve it in the local Workers runtime (`wrangler dev`)                 |
-| `npm run deploy`    | Build, then `wrangler deploy` to Cloudflare Workers                                |
-| `npm run lint`      | Prettier check + ESLint                                                            |
-| `npm run format`    | Prettier write                                                                     |
-| `npm run biome`     | Biome format + lint (not yet enforced; see below)                                  |
-| `npm run typecheck` | `svelte-check`                                                                     |
-| `npm test`          | Vitest                                                                             |
+| `pnpm run dev`       | Vite dev server with hot reload                                                    |
+| `pnpm run build`     | Production build via `@sveltejs/adapter-cloudflare` into `.svelte-kit/cloudflare/` |
+| `pnpm run preview`   | Build, then serve it in the local Workers runtime (`wrangler dev`)                 |
+| `pnpm run deploy`    | Build, then `wrangler deploy` to Cloudflare Workers                                |
+| `pnpm run lint`      | Prettier check + ESLint                                                            |
+| `pnpm run format`    | Prettier write                                                                     |
+| `pnpm run biome`     | Biome format + lint (not yet enforced; see below)                                  |
+| `pnpm run typecheck` | `svelte-check`                                                                     |
+| `pnpm test`          | Vitest                                                                             |
 
 npm 11 blocks dependency install scripts by default; `esbuild` and `workerd` are approved in
 `package.json` so their binaries install.
