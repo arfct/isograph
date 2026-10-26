@@ -58,7 +58,7 @@ and Tailwind 4, deployed to Cloudflare Workers with static assets. The page is c
 
 - `src/lib/model.ts` — document types and limits.
 - `src/lib/state.svelte.ts` — the reactive document and editor state, and every mutation.
-- `src/lib/url.ts` — compact encoding of a document into the URL hash.
+- `src/lib/url.ts` — compact encoding of a document into the URL hash; its first character names the format, so old links keep opening when the encoding changes.
 - `src/lib/scene/` — the Three.js scene, picking, dragging, and procedural materials.
 - `src/lib/ui/` — the toolbar, inspector, camera bar and help pane.
 
