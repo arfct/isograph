@@ -76,6 +76,10 @@ describe('encodeDoc', () => {
 	it('produces URL-safe base64', () => {
 		expect(encodeDoc(sampleDoc())).toMatch(/^[A-Za-z0-9_-]+$/);
 	});
+
+	it('starts with the JSON format tag', () => {
+		expect(encodeDoc(sampleDoc())[0]).toBe('e');
+	});
 });
 
 describe('decodeDoc', () => {
@@ -85,6 +89,18 @@ describe('decodeDoc', () => {
 
 	it('rejects input that is not an encoded document', () => {
 		expect(decodeDoc('not base64 json!')).toBeNull();
+		expect(decodeDoc('eyJub3QganNvbg')).toBeNull();
+	});
+
+	it('rejects a format tag this build does not know', () => {
+		expect(decodeDoc('2' + encodeDoc(sampleDoc()).slice(1))).toBeNull();
+		expect(decodeDoc('')).toBeNull();
+	});
+
+	it('opens links that carried the old in-payload version number', () => {
+		const v2 = encodePayload({ v: 2, c: [45, 30, 1, 0, 0], b: [[1, 0, 0, 2, 1, 1]] });
+		expect(v2[0]).toBe('e');
+		expect(decodeDoc(v2)?.blocks).toHaveLength(1);
 	});
 
 	it('drops links whose endpoints are missing or identical', () => {

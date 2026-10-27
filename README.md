@@ -9,6 +9,7 @@ A 3D viewer and editor for simple primitive isometric diagrams on the web.
 - **Links**: lines between blocks, anchored at a block's centre, an edge or a corner. Elbow (grid-routed), straight or curved; solid, dashed or dotted; optional label, one-way or two-way arrowheads, and an animated flow of dots along the line.
 - **Camera**: orthographic, rotates in 15° steps, zoom and pan over an endless grid.
 - **Sharing**: the whole document is encoded in the URL hash, so a link is a save file.
+- **Export**: download the scene as a readable JSON file to use elsewhere (see [Export format](#export-format)).
 
 ## Controls
 
@@ -25,6 +26,103 @@ A 3D viewer and editor for simple primitive isometric diagrams on the web.
 | Nudge selection    | arrow keys                                                            |
 | Delete selection   | `Delete` / `Backspace`                                                |
 | Keyboard shortcuts | `?`                                                                   |
+
+## Export format
+
+**Export** in the toolbar downloads `isograph.json`. The URL hash is packed for length; this file
+is meant for other programs to read, so fields are named, enums are strings and colours are
+palette names. It is written by `src/lib/export.ts`.
+
+```json
+{
+	"format": "isograph",
+	"version": 1,
+	"camera": { "az": 45, "el": 30, "zoom": 1, "tx": 0, "ty": 0 },
+	"palette": { "white": "#ffffff", "sky": "#c7d9e7", "…": "…" },
+	"blocks": [
+		{
+			"id": 1,
+			"shape": "cylinder",
+			"x": 0,
+			"y": 0,
+			"size": 2,
+			"height": 3,
+			"color": "sky",
+			"shade": "hatch",
+			"hatch": "cross",
+			"density": "coarse",
+			"label": { "text": "api", "edge": "E", "size": 0.7 }
+		}
+	],
+	"planes": [
+		{
+			"id": 3,
+			"x": -1,
+			"y": -1,
+			"w": 8,
+			"h": 4,
+			"color": "sage",
+			"label": { "text": "zone", "edge": "N", "size": 1 }
+		}
+	],
+	"links": [
+		{
+			"id": 4,
+			"from": { "block": 1, "anchor": "NE" },
+			"to": { "block": 2, "anchor": "W" },
+			"style": "curve",
+			"bend": "x",
+			"dash": "dotted",
+			"direction": "forward",
+			"animated": true,
+			"label": { "text": "calls", "size": 0.5 }
+		}
+	]
+}
+```
+
+**Coordinates.** Everything sits on an integer grid in grid units. `x` grows east, `y` grows
+north and height grows up from the floor at 0. A shape or plane's `x`, `y` is its south-west
+corner.
+
+**Top level.** `format` is always `"isograph"`. `version` is bumped only when a change would
+break a reader of the previous version; new fields may be added without a bump, so ignore
+fields you don't know. `palette` maps every colour name used in the file to its hex value.
+
+**`camera`.** Orthographic, looking at the floor point (`tx`, `ty`). `az` is the compass
+direction the camera sits in, in degrees: 0 puts it south of the target, looking north, and 90
+puts it east, so it increases counter-clockwise seen from above. `el` is degrees above the floor (15–75). Both move in 15°
+steps. `zoom` is a scale factor; 1 is the default.
+
+**`blocks`.** Shapes on the floor.
+
+| Field     | Values                                                                                                                                 |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`      | Integer, unique across blocks, planes and links                                                                                        |
+| `shape`   | `box`, `cylinder`, `sphere`, `pyramid`                                                                                                 |
+| `x`, `y`  | South-west corner of the footprint                                                                                                     |
+| `size`    | Footprint is `size` × `size` cells (1–12)                                                                                              |
+| `height`  | Height as drawn, 1–24. A sphere is always as tall as its `size`                                                                        |
+| `color`   | Palette name                                                                                                                           |
+| `shade`   | `flat`, `shaded`, `dither`, `hatch`                                                                                                    |
+| `hatch`   | `diagonal`, `backslash`, `cross`, `horizontal`, `vertical`, `grid`; only drawn when `shade` is `hatch`, but always present             |
+| `density` | `fine`, `medium`, `coarse`; the hatch spacing, same rule as `hatch`                                                                    |
+| `label`   | `null`, or `{ text, edge, size }`: text laid flat on the floor along `edge` (`N`, `E`, `S`, `W`), `size` the text height in grid units |
+
+**`planes`.** Flat coloured rectangles on the floor, drawn under blocks: `id`, `x`, `y`, `w`
+(east–west extent), `h` (north–south extent), `color`, and a `label` like a block's.
+
+**`links`.** Lines between two blocks.
+
+| Field       | Values                                                                                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `from`/`to` | `{ block, anchor }`: a block `id`, and where on it the line attaches: `C` (centre), an edge midpoint `N` `E` `S` `W`, or a corner `NE` `SE` `SW` `NW` |
+| `style`     | `elbow` (right-angled, along grid lines), `straight`, `curve`                                                                                         |
+| `bend`      | `x` or `y`: the axis an elbow travels along first                                                                                                     |
+| `dash`      | `solid`, `dashed`, `dotted`                                                                                                                           |
+| `direction` | `none`, `forward` (arrowhead at `to`), `both`                                                                                                         |
+| `animated`  | Dots flow toward each arrowhead; ignored when `direction` is `none`                                                                                   |
+| `label`     | `null`, or `{ text, size }`, placed at the middle of the line                                                                                         |
 
 ## Run it
 
@@ -58,7 +156,8 @@ and Tailwind 4, deployed to Cloudflare Workers with static assets. The page is c
 
 - `src/lib/model.ts` — document types and limits.
 - `src/lib/state.svelte.ts` — the reactive document and editor state, and every mutation.
-- `src/lib/url.ts` — compact encoding of a document into the URL hash.
+- `src/lib/export.ts` — the JSON export (see [Export format](#export-format)).
+- `src/lib/url.ts` — compact encoding of a document into the URL hash; its first character names the format, so old links keep opening when the encoding changes.
 - `src/lib/scene/` — the Three.js scene, picking, dragging, and procedural materials.
 - `src/lib/ui/` — the toolbar, inspector, camera bar and help pane.
 
