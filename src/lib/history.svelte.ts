@@ -41,11 +41,10 @@ function apply(s: string) {
 	doc.planes = d.planes;
 	doc.links = d.links;
 	current = s;
-	const sel = ui.selection;
-	if (sel) {
+	ui.selection = ui.selection.filter((sel) => {
 		const list = sel.kind === 'block' ? d.blocks : sel.kind === 'plane' ? d.planes : d.links;
-		if (!list.some((x) => x.id === sel.id)) ui.selection = null;
-	}
+		return list.some((x) => x.id === sel.id);
+	});
 	ui.linkFrom = null;
 }
 
