@@ -12,7 +12,14 @@
 		addLink,
 		nextBlock,
 		select,
+		selectMany,
+		selectAll,
+		toggleSelect,
+		isSelected,
+		describeSelection,
+		moveSelection,
 		selectedBlock,
+		selectedPlane,
 		setTool,
 		pickShape,
 		copySelection,
@@ -57,6 +64,8 @@
 	let container: HTMLDivElement;
 	let cursor = $derived(ui.tool === 'select' ? 'default' : 'crosshair');
 	let fontGen = $state(0);
+	/** Box-select rectangle, in pixels relative to the canvas. */
+	let marquee = $state<{ x: number; y: number; w: number; h: number } | null>(null);
 
 	const BASE_VIEW = 24; // world units visible vertically at zoom 1
 	const DIST = 300;
@@ -79,7 +88,7 @@
 	const FLOW_SPACING = 0.8; // world units between flow dots
 	const FLOW_SPEED = 1.2; // world units per second
 	const FLOW_RADIUS = 0.07;
-	/** Top corners of a block, as fractions of its size, in the order handles are built. */
+	/** Corners of a block's top face or a plane, as fractions of its size, in the order handles are built. */
 	const CORNERS: [number, number][] = [
 		[0, 0],
 		[1, 0],
@@ -90,10 +99,21 @@
 	type Drag =
 		| { kind: 'pan'; v: THREE.Vector2 }
 		| { kind: 'rotate'; x: number; y: number; az: number; el: number }
-		| { kind: 'move'; sel: SelectionRef; offX: number; offY: number }
+		| {
+				kind: 'move';
+				/** Floor point where the drag started. */
+				x: number;
+				y: number;
+				items: { ref: SelectionRef; x: number; y: number }[];
+				moved: boolean;
+				/** Clicked item of a multi-selection, selected alone if the pointer never moves. */
+				collapse: SelectionRef | null;
+		  }
 		| { kind: 'resize'; id: number; ax: number; ay: number; sx: number; sy: number; h: number }
+		| { kind: 'plane-resize'; id: number; ax: number; ay: number; sx: number; sy: number }
 		| { kind: 'height'; id: number; plane: THREE.Plane; off: number }
-		| { kind: 'rect'; start: THREE.Vector3; cur: THREE.Vector3 };
+		| { kind: 'rect'; start: THREE.Vector3; cur: THREE.Vector3 }
+		| { kind: 'marquee'; x: number; y: number; base: SelectionRef[] };
 
 	/** Per-frame silhouette outlines for curved shapes, which have no fixed edges to draw. */
 	type Silhouette =
@@ -742,35 +762,42 @@
 			}
 			handles.length = 0;
 			hitAreas.length = 0;
-			const s = ui.selection;
 			const pad = 0.12;
-			if (s?.kind === 'block') {
-				const b = doc.blocks.find((x) => x.id === s.id);
-				if (b) {
-					selectionGroup.add(
-						ring(b.x - pad, b.y - pad, b.x + b.size + pad, b.y + b.size + pad, Z_SEL)
-					);
-					if (ui.tool === 'select') {
-						const top = blockHeight(b);
-						CORNERS.forEach(([fx, fy], i) =>
-							buildHandle(b.x + fx * b.size, b.y + fy * b.size, top, i)
+			for (const s of ui.selection) {
+				if (s.kind === 'block') {
+					const b = doc.blocks.find((x) => x.id === s.id);
+					if (b)
+						selectionGroup.add(
+							ring(b.x - pad, b.y - pad, b.x + b.size + pad, b.y + b.size + pad, Z_SEL)
 						);
-						if (b.shape !== 'sphere') buildHeightHandle(b.x + b.size / 2, b.y + b.size / 2, top);
+				} else if (s.kind === 'plane') {
+					const p = doc.planes.find((x) => x.id === s.id);
+					if (p)
+						selectionGroup.add(ring(p.x - pad, p.y - pad, p.x + p.w + pad, p.y + p.h + pad, Z_SEL));
+				} else {
+					const l = doc.links.find((x) => x.id === s.id);
+					const a = l && doc.blocks.find((x) => x.id === l.a);
+					const b = l && doc.blocks.find((x) => x.id === l.b);
+					if (l && a && b) {
+						const [ax, ay] = anchorPoint(a, l.from);
+						const [bx, by] = anchorPoint(b, l.to);
+						buildHandle(ax, ay, Z_SEL, null);
+						buildHandle(bx, by, Z_SEL, null);
 					}
 				}
-			} else if (s?.kind === 'plane') {
-				const p = doc.planes.find((x) => x.id === s.id);
-				if (p)
-					selectionGroup.add(ring(p.x - pad, p.y - pad, p.x + p.w + pad, p.y + p.h + pad, Z_SEL));
-			} else if (s?.kind === 'link') {
-				const l = doc.links.find((x) => x.id === s.id);
-				const a = l && doc.blocks.find((x) => x.id === l.a);
-				const b = l && doc.blocks.find((x) => x.id === l.b);
-				if (l && a && b) {
-					const [ax, ay] = anchorPoint(a, l.from);
-					const [bx, by] = anchorPoint(b, l.to);
-					buildHandle(ax, ay, Z_SEL, null);
-					buildHandle(bx, by, Z_SEL, null);
+			}
+			// Resize handles only make sense on a lone block or plane.
+			if (ui.tool === 'select') {
+				const b = selectedBlock();
+				const p = selectedPlane();
+				if (b) {
+					const top = blockHeight(b);
+					CORNERS.forEach(([fx, fy], i) =>
+						buildHandle(b.x + fx * b.size, b.y + fy * b.size, top, i)
+					);
+					if (b.shape !== 'sphere') buildHeightHandle(b.x + b.size / 2, b.y + b.size / 2, top);
+				} else if (p) {
+					CORNERS.forEach(([fx, fy], i) => buildHandle(p.x + fx * p.w, p.y + fy * p.h, Z_SEL, i));
 				}
 			}
 			if (ui.linkFrom != null) {
@@ -873,6 +900,41 @@
 			}
 		}
 
+		/** Pointer position in pixels relative to the canvas. */
+		function canvasPoint(e: { clientX: number; clientY: number }): [number, number] {
+			const r = el.getBoundingClientRect();
+			return [e.clientX - r.left, e.clientY - r.top];
+		}
+
+		/** Blocks and planes whose whole on-screen outline lies inside a canvas-pixel box. */
+		function itemsInBox(box: { x: number; y: number; w: number; h: number }): SelectionRef[] {
+			syncMatrices();
+			const v = new THREE.Vector3();
+			const inside = (pts: [number, number, number][]) =>
+				pts.every(([x, y, z]) => {
+					v.set(x, y, z).project(camera);
+					const px = ((v.x + 1) / 2) * width;
+					const py = ((1 - v.y) / 2) * height;
+					return px >= box.x && px <= box.x + box.w && py >= box.y && py <= box.y + box.h;
+				});
+			const corners = (x: number, y: number, w: number, h: number, z: number) =>
+				CORNERS.map(([fx, fy]): [number, number, number] => [x + fx * w, y + fy * h, z]);
+			const refs: SelectionRef[] = [];
+			for (const b of doc.blocks) {
+				const top = blockHeight(b);
+				if (
+					inside([
+						...corners(b.x, b.y, b.size, b.size, 0),
+						...corners(b.x, b.y, b.size, b.size, top)
+					])
+				)
+					refs.push({ kind: 'block', id: b.id });
+			}
+			for (const p of doc.planes)
+				if (inside(corners(p.x, p.y, p.w, p.h, 0))) refs.push({ kind: 'plane', id: p.id });
+			return refs;
+		}
+
 		function onPointerDown(e: PointerEvent) {
 			const v = ndc(e);
 			el.setPointerCapture(e.pointerId);
@@ -951,15 +1013,57 @@
 						cursor = 'grabbing';
 						break;
 					}
+					const sp = selectedPlane();
+					if (typeof handle === 'number' && sp) {
+						const [fx, fy] = CORNERS[handle];
+						drag = {
+							kind: 'plane-resize',
+							id: sp.id,
+							ax: sp.x + (1 - fx) * sp.w,
+							ay: sp.y + (1 - fy) * sp.h,
+							sx: fx ? 1 : -1,
+							sy: fy ? 1 : -1
+						};
+						cursor = 'grabbing';
+						break;
+					}
 					if (hit) {
-						select(hit);
-						if (hit.kind === 'block' && fh) {
-							const b = doc.blocks.find((x) => x.id === hit.id)!;
-							drag = { kind: 'move', sel: hit, offX: fh.x - b.x, offY: fh.y - b.y };
-						} else if (hit.kind === 'plane' && fh) {
-							const p = doc.planes.find((x) => x.id === hit.id)!;
-							drag = { kind: 'move', sel: hit, offX: fh.x - p.x, offY: fh.y - p.y };
+						// Shift adds to or removes from the selection.
+						if (e.shiftKey) {
+							toggleSelect(hit);
+							break;
 						}
+						const already = isSelected(hit);
+						if (!already) select(hit);
+						if (hit.kind === 'link') {
+							select(hit);
+							break;
+						}
+						if (fh) {
+							// Drag everything selected; links follow their blocks.
+							const items = ui.selection.flatMap((ref) => {
+								const t =
+									ref.kind === 'block'
+										? doc.blocks.find((x) => x.id === ref.id)
+										: ref.kind === 'plane'
+											? doc.planes.find((x) => x.id === ref.id)
+											: undefined;
+								return t ? [{ ref, x: t.x, y: t.y }] : [];
+							});
+							drag = {
+								kind: 'move',
+								x: fh.x,
+								y: fh.y,
+								items,
+								moved: false,
+								collapse: already && ui.selection.length > 1 ? hit : null
+							};
+						}
+					} else if (e.shiftKey) {
+						// Shift-drag on empty floor draws a box; plain drag still pans.
+						const [x, y] = canvasPoint(e);
+						drag = { kind: 'marquee', x, y, base: [...ui.selection] };
+						cursor = 'crosshair';
 					} else {
 						select(null);
 						drag = { kind: 'pan', v };
@@ -999,6 +1103,23 @@
 				return;
 			}
 			switch (drag.kind) {
+				case 'marquee': {
+					const [x, y] = canvasPoint(e);
+					const box = {
+						x: Math.min(drag.x, x),
+						y: Math.min(drag.y, y),
+						w: Math.abs(x - drag.x),
+						h: Math.abs(y - drag.y)
+					};
+					marquee = box;
+					// Add whatever lies wholly inside the box to the selection the drag started with.
+					const base = drag.base;
+					const inside = itemsInBox(box).filter(
+						(r) => !base.some((s) => s.kind === r.kind && s.id === r.id)
+					);
+					selectMany([...base, ...inside]);
+					break;
+				}
 				case 'pan': {
 					const a = floorHit(drag.v);
 					const b = floorHit(v);
@@ -1022,16 +1143,38 @@
 				case 'move': {
 					const fh = floorHit(v);
 					if (!fh) break;
-					const nx = Math.round(fh.x - drag.offX);
-					const ny = Math.round(fh.y - drag.offY);
-					const sel = drag.sel;
-					const target =
-						sel.kind === 'block'
-							? doc.blocks.find((x) => x.id === sel.id)
-							: doc.planes.find((x) => x.id === sel.id);
-					if (target && (target.x !== nx || target.y !== ny)) {
-						target.x = nx;
-						target.y = ny;
+					const dx = Math.round(fh.x - drag.x);
+					const dy = Math.round(fh.y - drag.y);
+					if (dx || dy) drag.moved = true;
+					for (const it of drag.items) {
+						const { ref } = it;
+						const target =
+							ref.kind === 'block'
+								? doc.blocks.find((x) => x.id === ref.id)
+								: doc.planes.find((x) => x.id === ref.id);
+						const nx = it.x + dx;
+						const ny = it.y + dy;
+						if (target && (target.x !== nx || target.y !== ny)) {
+							target.x = nx;
+							target.y = ny;
+						}
+					}
+					break;
+				}
+				case 'plane-resize': {
+					const fh = floorHit(v);
+					const id = drag.id;
+					const p = doc.planes.find((x) => x.id === id);
+					if (!fh || !p) break;
+					const w = Math.max(1, Math.round((fh.x - drag.ax) * drag.sx));
+					const h = Math.max(1, Math.round((fh.y - drag.ay) * drag.sy));
+					const nx = drag.sx > 0 ? drag.ax : drag.ax - w;
+					const ny = drag.sy > 0 ? drag.ay : drag.ay - h;
+					if (p.w !== w || p.h !== h || p.x !== nx || p.y !== ny) {
+						p.w = w;
+						p.h = h;
+						p.x = nx;
+						p.y = ny;
 					}
 					break;
 				}
@@ -1087,7 +1230,10 @@
 				// Hold shift to keep drawing planes.
 				if (!e.shiftKey) setTool('select');
 			}
+			// A click without a drag on part of a multi-selection selects just that item.
+			if (drag?.kind === 'move' && !drag.moved && drag.collapse) select(drag.collapse);
 			drag = null;
+			marquee = null;
 			updatePreview();
 			cursor = ui.tool === 'select' ? 'default' : 'crosshair';
 			if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
@@ -1134,16 +1280,20 @@
 					return;
 				}
 				if (e.shiftKey) return;
-				if (k === 'c' && ui.tool === 'select') {
-					const sel = ui.selection;
+				if (k === 'a' && ui.tool === 'select') {
+					selectAll();
+					toast(ui.selection.length ? `Selected ${describeSelection()}` : 'Nothing to select');
+					e.preventDefault();
+				} else if (k === 'c' && ui.tool === 'select') {
 					if (copySelection()) {
-						toast(`Copied ${sel?.kind}`);
+						const sel = ui.selection.filter((s) => s.kind !== 'link');
+						toast(`Copied ${describeSelection(sel)}`);
 						e.preventDefault();
 					}
 				} else if (k === 'v' && ui.tool === 'select') {
 					const pasted = pasteClipboard();
 					if (pasted) {
-						toast(`Pasted ${ui.selection?.kind}`);
+						toast(`Pasted ${describeSelection(pasted)}`);
 						e.preventDefault();
 					}
 				}
@@ -1157,9 +1307,9 @@
 					break;
 				case 'Delete':
 				case 'Backspace': {
-					const kind = ui.selection?.kind;
+					const what = ui.selection.length ? describeSelection() : null;
 					deleteSelection();
-					if (kind) toast(`Deleted ${kind}`);
+					if (what) toast(`Deleted ${what}`);
 					e.preventDefault();
 					break;
 				}
@@ -1169,7 +1319,7 @@
 						break;
 					}
 					if (ui.tool !== 'select') toast('Select tool');
-					else if (ui.selection) toast('Deselected');
+					else if (ui.selection.length) toast('Deselected');
 					setTool('select');
 					select(null);
 					break;
@@ -1225,13 +1375,8 @@
 				case 'ArrowDown':
 				case 'ArrowLeft':
 				case 'ArrowRight': {
-					const s = ui.selection;
-					if (!s || s.kind === 'link') return;
-					const target =
-						s.kind === 'block'
-							? doc.blocks.find((x) => x.id === s.id)
-							: doc.planes.find((x) => x.id === s.id);
-					if (!target) return;
+					const movable = ui.selection.filter((s) => s.kind !== 'link');
+					if (!movable.length) return;
 					const ax = screenAxes();
 					const dir =
 						e.key === 'ArrowUp'
@@ -1241,9 +1386,8 @@
 								: e.key === 'ArrowRight'
 									? ax.right
 									: [-ax.right[0], -ax.right[1]];
-					target.x += dir[0];
-					target.y += dir[1];
-					toast(`Nudged ${s.kind}`);
+					moveSelection(dir[0], dir[1]);
+					toast(`Nudged ${describeSelection(movable)}`);
 					e.preventDefault();
 					break;
 				}
@@ -1322,7 +1466,17 @@
 	});
 </script>
 
-<div bind:this={container} class="scene" style:cursor></div>
+<div bind:this={container} class="scene" style:cursor>
+	{#if marquee}
+		<div
+			class="marquee"
+			style:left="{marquee.x}px"
+			style:top="{marquee.y}px"
+			style:width="{marquee.w}px"
+			style:height="{marquee.h}px"
+		></div>
+	{/if}
+</div>
 
 <style>
 	.scene {
@@ -1334,5 +1488,11 @@
 	}
 	.scene :global(canvas) {
 		display: block;
+	}
+	.marquee {
+		position: absolute;
+		pointer-events: none;
+		border: 1px dashed var(--ink);
+		background: rgba(21, 21, 21, 0.05);
 	}
 </style>

@@ -1,8 +1,10 @@
 <script lang="ts">
 	import {
-		selectedBlock,
-		selectedPlane,
-		selectedLink,
+		ui,
+		selectionKind,
+		selectedBlocks,
+		selectedPlanes,
+		selectedLinks,
 		blockById,
 		deleteSelection,
 		swapLink
@@ -31,15 +33,37 @@
 	} from '$lib/model';
 	import Icon from './Icon.svelte';
 
-	function stepLabel(b: { labelSize: number }, dir: number) {
-		b.labelSize =
-			Math.round(clamp(b.labelSize + dir * LABEL_SIZE_STEP, MIN_LABEL_SIZE, MAX_LABEL_SIZE) * 10) /
-			10;
+	/**
+	 * Every control edits all selected items of one kind. A control shows a value only when the
+	 * items agree on it; steppers move each item's own value.
+	 */
+	function same<T, K extends keyof T>(items: T[], key: K): T[K] | undefined {
+		const v = items[0]?.[key];
+		return items.every((x) => x[key] === v) ? v : undefined;
 	}
 
-	const block = $derived(selectedBlock());
-	const plane = $derived(selectedPlane());
-	const link = $derived(selectedLink());
+	function setAll<T, K extends keyof T>(items: T[], key: K, value: T[K]) {
+		for (const x of items) x[key] = value;
+	}
+
+	function shown(v: number | undefined, digits = 0): string {
+		return v === undefined ? '–' : v.toFixed(digits);
+	}
+
+	function stepLabel(items: { labelSize: number }[], dir: number) {
+		for (const b of items)
+			b.labelSize =
+				Math.round(
+					clamp(b.labelSize + dir * LABEL_SIZE_STEP, MIN_LABEL_SIZE, MAX_LABEL_SIZE) * 10
+				) / 10;
+	}
+
+	const kind = $derived(selectionKind());
+	const blocks = $derived(kind === 'block' ? selectedBlocks() : []);
+	const planes = $derived(kind === 'plane' ? selectedPlanes() : []);
+	const links = $derived(kind === 'link' ? selectedLinks() : []);
+	/** The lone selected link; ends and anchors only make sense for one. */
+	const link = $derived(links.length === 1 ? links[0] : undefined);
 
 	const edgeNames: Record<Edge, string> = { S: 'Front', E: 'Right', N: 'Back', W: 'Left' };
 	const hatchGlyphs: Record<Block['hatch'], string> = {
@@ -78,40 +102,52 @@
 	}
 </script>
 
-{#snippet labelFields(target: Block | Plane | Link, id: string)}
+{#snippet title(name: string, items: { id: number }[])}
+	{#if items.length === 1}
+		<div class="title">{name} <span class="id">#{items[0].id}</span></div>
+	{:else}
+		<div class="title">{items.length} {name}s</div>
+	{/if}
+{/snippet}
+
+{#snippet labelFields(items: (Block | Plane | Link)[], id: string)}
+	{@const label = same(items, 'label')}
 	<div class="field">
 		<label class="field-label" for={id}>Label</label>
 		<input
 			{id}
 			type="text"
-			placeholder="untitled"
-			value={target.label}
-			oninput={(e) => (target.label = e.currentTarget.value)}
+			placeholder={label === undefined ? 'mixed' : 'untitled'}
+			value={label ?? ''}
+			oninput={(e) => setAll(items, 'label', e.currentTarget.value)}
 		/>
 	</div>
 {/snippet}
 
-{#snippet labelSizeField(target: { labelSize: number })}
+{#snippet labelSizeField(items: { labelSize: number }[])}
 	<div class="field">
 		<span class="field-label">Label size</span>
 		<div class="stepper">
-			<button class="btn" onclick={() => stepLabel(target, -1)}
+			<button class="btn" onclick={() => stepLabel(items, -1)}
 				><Icon name="minus" size={14} /></button
 			>
-			<span class="value">{target.labelSize.toFixed(1)}</span>
-			<button class="btn" onclick={() => stepLabel(target, 1)}
-				><Icon name="plus" size={14} /></button
+			<span class="value">{shown(same(items, 'labelSize'), 1)}</span>
+			<button class="btn" onclick={() => stepLabel(items, 1)}><Icon name="plus" size={14} /></button
 			>
 		</div>
 	</div>
 {/snippet}
 
-{#snippet edgeField(target: { edge: Edge })}
+{#snippet edgeField(items: { edge: Edge }[])}
 	<div class="field grow">
 		<span class="field-label">Label edge</span>
 		<div class="seg">
 			{#each EDGES as e (e)}
-				<button class="btn" class:active={target.edge === e} onclick={() => (target.edge = e)}>
+				<button
+					class="btn"
+					class:active={same(items, 'edge') === e}
+					onclick={() => setAll(items, 'edge', e)}
+				>
 					{edgeNames[e]}
 				</button>
 			{/each}
@@ -119,20 +155,31 @@
 	</div>
 {/snippet}
 
-{#snippet swatches(target: { color: number })}
+{#snippet swatches(items: { color: number }[])}
 	<div class="field">
 		<span class="field-label">Color</span>
 		<div class="swatches">
 			{#each PALETTE as c, i (c.name)}
 				<button
 					class="swatch"
-					class:active={target.color === i}
+					class:active={same(items, 'color') === i}
 					style:background={c.hex}
 					title={c.name}
 					aria-label={c.name}
-					onclick={() => (target.color = i)}
+					onclick={() => setAll(items, 'color', i)}
 				></button>
 			{/each}
+		</div>
+	</div>
+{/snippet}
+
+{#snippet stepper(name: string, value: number | undefined, step: (dir: number) => void)}
+	<div class="field">
+		<span class="field-label">{name}</span>
+		<div class="stepper">
+			<button class="btn" onclick={() => step(-1)}><Icon name="minus" size={14} /></button>
+			<span class="value">{shown(value)}</span>
+			<button class="btn" onclick={() => step(1)}><Icon name="plus" size={14} /></button>
 		</div>
 	</div>
 {/snippet}
@@ -157,14 +204,14 @@
 	</div>
 {/snippet}
 
-{#if block || plane || link}
+{#if kind}
 	<div class="panel inspector">
-		{#if block}
-			<div class="title">Block <span class="id">#{block.id}</span></div>
-			{@render labelFields(block, 'block-label')}
+		{#if blocks.length}
+			{@render title('Block', blocks)}
+			{@render labelFields(blocks, 'block-label')}
 			<div class="row">
-				{@render edgeField(block)}
-				{@render labelSizeField(block)}
+				{@render edgeField(blocks)}
+				{@render labelSizeField(blocks)}
 			</div>
 			<div class="field">
 				<span class="field-label">Shape</span>
@@ -172,10 +219,10 @@
 					{#each SHAPES as s (s)}
 						<button
 							class="btn"
-							class:active={block.shape === s}
+							class:active={same(blocks, 'shape') === s}
 							title={s}
 							aria-label={s}
-							onclick={() => (block.shape = s)}
+							onclick={() => setAll(blocks, 'shape', s)}
 						>
 							<Icon name={s} size={15} />
 						</button>
@@ -183,48 +230,30 @@
 				</div>
 			</div>
 			<div class="row">
-				<div class="field">
-					<span class="field-label">Size</span>
-					<div class="stepper">
-						<button class="btn" onclick={() => (block.size = clamp(block.size - 1, 1, MAX_SIZE))}
-							><Icon name="minus" size={14} /></button
-						>
-						<span class="value">{block.size}</span>
-						<button class="btn" onclick={() => (block.size = clamp(block.size + 1, 1, MAX_SIZE))}
-							><Icon name="plus" size={14} /></button
-						>
-					</div>
-				</div>
-				{#if block.shape !== 'sphere'}
-					<div class="field">
-						<span class="field-label">Height</span>
-						<div class="stepper">
-							<button
-								class="btn"
-								onclick={() => (block.height = clamp(block.height - 1, 1, MAX_HEIGHT))}
-								><Icon name="minus" size={14} /></button
-							>
-							<span class="value">{block.height}</span>
-							<button
-								class="btn"
-								onclick={() => (block.height = clamp(block.height + 1, 1, MAX_HEIGHT))}
-								><Icon name="plus" size={14} /></button
-							>
-						</div>
-					</div>
+				{@render stepper('Size', same(blocks, 'size'), (dir) => {
+					for (const b of blocks) b.size = clamp(b.size + dir, 1, MAX_SIZE);
+				})}
+				{#if blocks.some((b) => b.shape !== 'sphere')}
+					{@render stepper('Height', same(blocks, 'height'), (dir) => {
+						for (const b of blocks) b.height = clamp(b.height + dir, 1, MAX_HEIGHT);
+					})}
 				{/if}
 			</div>
 			<div class="field">
 				<span class="field-label">Shading</span>
 				<div class="seg">
 					{#each SHADES as s (s)}
-						<button class="btn" class:active={block.shade === s} onclick={() => (block.shade = s)}>
+						<button
+							class="btn"
+							class:active={same(blocks, 'shade') === s}
+							onclick={() => setAll(blocks, 'shade', s)}
+						>
 							{s}
 						</button>
 					{/each}
 				</div>
 			</div>
-			{#if block.shade === 'hatch'}
+			{#if blocks.some((b) => b.shade === 'hatch')}
 				<div class="row">
 					<div class="field grow">
 						<span class="field-label">Hatch</span>
@@ -232,10 +261,10 @@
 							{#each HATCHES as h (h)}
 								<button
 									class="btn glyph"
-									class:active={block.hatch === h}
+									class:active={same(blocks, 'hatch') === h}
 									title={h}
 									aria-label={h}
-									onclick={() => (block.hatch = h)}
+									onclick={() => setAll(blocks, 'hatch', h)}
 								>
 									{hatchGlyphs[h]}
 								</button>
@@ -249,8 +278,8 @@
 						{#each DENSITIES as d (d)}
 							<button
 								class="btn"
-								class:active={block.density === d}
-								onclick={() => (block.density = d)}
+								class:active={same(blocks, 'density') === d}
+								onclick={() => setAll(blocks, 'density', d)}
 							>
 								{d}
 							</button>
@@ -258,104 +287,98 @@
 					</div>
 				</div>
 			{/if}
-			{@render swatches(block)}
-		{:else if plane}
-			<div class="title">Plane <span class="id">#{plane.id}</span></div>
-			{@render labelFields(plane, 'plane-label')}
+			{@render swatches(blocks)}
+		{:else if planes.length}
+			{@render title('Plane', planes)}
+			{@render labelFields(planes, 'plane-label')}
 			<div class="row">
-				{@render edgeField(plane)}
-				{@render labelSizeField(plane)}
+				{@render edgeField(planes)}
+				{@render labelSizeField(planes)}
 			</div>
 			<div class="row">
+				{@render stepper('Width', same(planes, 'w'), (dir) => {
+					for (const p of planes) p.w = Math.max(1, p.w + dir);
+				})}
+				{@render stepper('Depth', same(planes, 'h'), (dir) => {
+					for (const p of planes) p.h = Math.max(1, p.h + dir);
+				})}
+			</div>
+			{@render swatches(planes)}
+		{:else if links.length}
+			{@render title('Link', links)}
+			{#if link}
 				<div class="field">
-					<span class="field-label">Width</span>
-					<div class="stepper">
-						<button class="btn" onclick={() => (plane.w = Math.max(1, plane.w - 1))}
-							><Icon name="minus" size={14} /></button
-						>
-						<span class="value">{plane.w}</span>
-						<button class="btn" onclick={() => (plane.w = plane.w + 1)}
-							><Icon name="plus" size={14} /></button
+					<span class="field-label">Connects</span>
+					<div class="connects">
+						<span class="muted ends">{blockName(link.a)} → {blockName(link.b)}</span>
+						<button
+							class="btn icon"
+							title="Swap ends"
+							aria-label="Swap ends"
+							onclick={() => swapLink(link)}><Icon name="swap" /></button
 						>
 					</div>
 				</div>
-				<div class="field">
-					<span class="field-label">Depth</span>
-					<div class="stepper">
-						<button class="btn" onclick={() => (plane.h = Math.max(1, plane.h - 1))}
-							><Icon name="minus" size={14} /></button
-						>
-						<span class="value">{plane.h}</span>
-						<button class="btn" onclick={() => (plane.h = plane.h + 1)}
-							><Icon name="plus" size={14} /></button
-						>
-					</div>
-				</div>
-			</div>
-			{@render swatches(plane)}
-		{:else if link}
-			<div class="title">Link <span class="id">#{link.id}</span></div>
-			<div class="field">
-				<span class="field-label">Connects</span>
-				<div class="connects">
-					<span class="muted ends">{blockName(link.a)} → {blockName(link.b)}</span>
-					<button
-						class="btn icon"
-						title="Swap ends"
-						aria-label="Swap ends"
-						onclick={() => swapLink(link)}><Icon name="swap" /></button
-					>
-				</div>
-			</div>
-			{@render labelFields(link, 'link-label')}
+			{/if}
+			{@render labelFields(links, 'link-label')}
 			<div class="row">
 				<div class="field grow">
 					<span class="field-label">Style</span>
 					<div class="seg">
 						{#each LINK_STYLES as s (s)}
-							<button class="btn" class:active={link.style === s} onclick={() => (link.style = s)}>
+							<button
+								class="btn"
+								class:active={same(links, 'style') === s}
+								onclick={() => setAll(links, 'style', s)}
+							>
 								{s}
 							</button>
 						{/each}
 					</div>
 				</div>
-				{@render labelSizeField(link)}
+				{@render labelSizeField(links)}
 			</div>
 			<div class="row">
 				<div class="field grow">
 					<span class="field-label">Line</span>
 					<div class="seg">
 						{#each DASHES as d (d)}
-							<button class="btn" class:active={link.dash === d} onclick={() => (link.dash = d)}>
+							<button
+								class="btn"
+								class:active={same(links, 'dash') === d}
+								onclick={() => setAll(links, 'dash', d)}
+							>
 								{d}
 							</button>
 						{/each}
 					</div>
 				</div>
-				{#if link.style !== 'straight'}
+				{#if links.some((l) => l.style !== 'straight')}
 					<div class="field">
 						<span class="field-label">Bend</span>
 						<div class="seg">
 							<button
 								class="btn"
-								class:active={link.bend === 'x'}
+								class:active={same(links, 'bend') === 'x'}
 								title="Travel along X first"
-								onclick={() => (link.bend = 'x')}>X</button
+								onclick={() => setAll(links, 'bend', 'x')}>X</button
 							>
 							<button
 								class="btn"
-								class:active={link.bend === 'y'}
+								class:active={same(links, 'bend') === 'y'}
 								title="Travel along Y first"
-								onclick={() => (link.bend = 'y')}>Y</button
+								onclick={() => setAll(links, 'bend', 'y')}>Y</button
 							>
 						</div>
 					</div>
 				{/if}
 			</div>
-			<div class="row">
-				{@render anchorPicker(link, 'from', `From ${blockName(link.a)}`)}
-				{@render anchorPicker(link, 'to', `To ${blockName(link.b)}`)}
-			</div>
+			{#if link}
+				<div class="row">
+					{@render anchorPicker(link, 'from', `From ${blockName(link.a)}`)}
+					{@render anchorPicker(link, 'to', `To ${blockName(link.b)}`)}
+				</div>
+			{/if}
 			<div class="row">
 				<div class="field grow">
 					<span class="field-label">Direction</span>
@@ -363,30 +386,34 @@
 						{#each DIRECTIONS as d (d)}
 							<button
 								class="btn"
-								class:active={link.direction === d}
-								onclick={() => (link.direction = d)}
+								class:active={same(links, 'direction') === d}
+								onclick={() => setAll(links, 'direction', d)}
 							>
 								{dirNames[d]}
 							</button>
 						{/each}
 					</div>
 				</div>
-				{#if link.direction !== 'none'}
+				{#if links.some((l) => l.direction !== 'none')}
+					{@const animated = same(links, 'animated')}
 					<div class="field">
 						<span class="field-label">Flow</span>
 						<div class="seg">
 							<button
 								class="btn"
-								class:active={link.animated}
-								aria-pressed={link.animated}
-								onclick={() => (link.animated = !link.animated)}
+								class:active={animated === true}
+								aria-pressed={animated === true}
+								onclick={() => setAll(links, 'animated', animated !== true)}
 							>
-								{link.animated ? 'Animated' : 'Static'}
+								{animated === undefined ? 'Mixed' : animated ? 'Animated' : 'Static'}
 							</button>
 						</div>
 					</div>
 				{/if}
 			</div>
+		{:else}
+			<div class="title">{ui.selection.length} items</div>
+			<p class="muted hint">Select items of one kind to edit them together.</p>
 		{/if}
 		<div class="footer">
 			<button class="btn delete" onclick={deleteSelection}
@@ -438,6 +465,9 @@
 	}
 	.muted {
 		color: var(--muted);
+	}
+	.hint {
+		margin: 0;
 	}
 	.glyph {
 		text-transform: none;

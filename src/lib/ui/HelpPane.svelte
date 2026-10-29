@@ -31,6 +31,9 @@
 		{
 			title: 'Edit',
 			rows: [
+				{ keys: ['Shift', 'Click'], label: 'Add to / remove from selection' },
+				{ keys: ['Shift', 'Drag'], label: 'Box-select from empty floor' },
+				{ keys: [mod, 'A'], label: 'Select all blocks and planes' },
 				{ keys: [mod, 'Z'], label: 'Undo' },
 				{ keys: [mod, 'Shift', 'Z'], label: 'Redo' },
 				{ keys: [mod, 'C'], label: 'Copy selection' },
