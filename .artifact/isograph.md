@@ -21,6 +21,6 @@ Diagrams that sit on the floor. Isograph is a page of endless isometric grid whe
 
 The links do the explaining. They run elbow, straight or curved, solid, dashed or dotted, with a label, arrowheads in either direction and dots that flow along the line. The camera is orthographic and turns in 15° steps. The whole document is packed into the URL hash, so a link is the file. Export writes the same scene as readable JSON for other programs.
 
-It began as liquidx-isograph by Alastair Tse, from which this repo was migrated; the first commit there is September 2026.
+It began as liquidx-isograph, the repo this one was migrated from; the first commit there is September 2026.
 
 SvelteKit, Three.js and Tailwind, on Cloudflare Workers.
