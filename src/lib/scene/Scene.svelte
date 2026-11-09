@@ -472,15 +472,18 @@
 			);
 			mesh.position.set(p.w / 2, p.h / 2, Z_PLANE);
 			mesh.userData = { kind: 'plane', id: p.id };
+			// Same height as the fill, then pulled toward the camera like block edges: a lift along z
+			// would show on screen as a shift up, leaving the line inside the fill on the near edges.
 			const outline = new THREE.LineLoop(
 				new THREE.BufferGeometry().setFromPoints([
-					new THREE.Vector3(0, 0, Z_PLANE + 0.002),
-					new THREE.Vector3(p.w, 0, Z_PLANE + 0.002),
-					new THREE.Vector3(p.w, p.h, Z_PLANE + 0.002),
-					new THREE.Vector3(0, p.h, Z_PLANE + 0.002)
+					new THREE.Vector3(0, 0, Z_PLANE),
+					new THREE.Vector3(p.w, 0, Z_PLANE),
+					new THREE.Vector3(p.w, p.h, Z_PLANE),
+					new THREE.Vector3(0, p.h, Z_PLANE)
 				]),
 				new THREE.LineBasicMaterial({ color: mix(hex, '#151515', 0.35) })
 			);
+			outline.userData.pull = true;
 			group.add(mesh, outline);
 			const text = p.label.trim();
 			if (text) {
