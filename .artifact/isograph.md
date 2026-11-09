@@ -12,6 +12,9 @@ media:
   - src: diagram.png
     caption: A small architecture drawn on the grid, with links animated along their lines
     alt: Isometric diagram on a cream grid with a lilac client plane holding a blue box labelled web, and a green backend plane holding an orange hatched cylinder labelled api, a pink dotted cylinder labelled db, a yellow box labelled queue and a blue box labelled worker, joined by labelled dotted and solid lines
+  - src: shapes.png
+    caption: All four shapes on two planes, in flat, shaded, dithered and hatched fills
+    alt: Isometric scene on a cream grid with a lilac plane holding a blue box and a hatched peach cylinder, and a green plane holding a dotted green cube, a pink sphere and a yellow pyramid, joined by dotted, solid and dashed labelled links
 credits:
   - liquidx
 unconfirmed: [date]
