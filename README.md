@@ -147,7 +147,8 @@ pnpm run dev
 | `pnpm test`          | Vitest                                                                             |
 
 `package.json` pins the toolchain in `devEngines`: Node 24 and pnpm 12. npm and pnpm both refuse
-to run under anything else. pnpm only runs dependency build scripts that are listed in
+to run under anything else. `packageManager` names the exact pnpm release, which Corepack and
+Cloudflare Workers Builds use to pick the pnpm that installs dependencies. pnpm only runs dependency build scripts that are listed in
 `allowBuilds` in `pnpm-workspace.yaml`; `esbuild` and `workerd` are allowed there so their
 binaries install.
 

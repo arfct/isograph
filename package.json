@@ -4,6 +4,7 @@
 	"private": true,
 	"type": "module",
 	"description": "A 3D viewer and editor for simple primitive isometric diagrams",
+	"packageManager": "pnpm@12.18.0",
 	"devEngines": {
 		"runtime": {
 			"name": "node",
