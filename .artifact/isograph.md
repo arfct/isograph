@@ -4,7 +4,6 @@ date: 2026-09
 category: product
 tags:
   - web
-  - open-source
 url: https://isograph.fyi
 links:
   source: https://github.com/arfct/isograph
