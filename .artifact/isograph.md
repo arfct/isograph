@@ -1,6 +1,6 @@
 ---
 title: Isograph
-date: 2026-09
+date: 2026-08
 category: product
 tags:
   - web
@@ -19,9 +19,9 @@ credits:
 unconfirmed: [date]
 ---
 
-Every block in an Isograph diagram has a square footprint and sits on the lines of a grid. A block is a box, a cylinder, a sphere or a pyramid, from 1 to 12 cells wide and up to 24 high, though a sphere is always as tall as it is wide. Coloured planes lie on the floor under the blocks to group them. Links run between two blocks and attach at a block's centre, at an edge or at a corner.
+Every block in an Isograph diagram has a square footprint and sits on the lines of a grid. A block is a box, a cylinder, a sphere or a pyramid, from 1 to 12 cells wide and up to 24 high, though a sphere is always as tall as it is wide. Colored planes lie on the floor under the blocks to group them. Links run between two blocks and attach at a block's center, at an edge or at a corner.
 
-A block's fill is flat, shaded, dithered or hatched, with hatching in six patterns at three densities, and its colour comes from a palette of 13: white, six greys and six pastels. A link is routed as an elbow along the grid lines, a straight line or a curve, and drawn solid, dashed or dotted. It can carry a label, an arrowhead at one end or both, and dots that flow toward each arrowhead. The camera is orthographic and rotates in 15° steps.
+A block's fill is flat, shaded, dithered or hatched, with hatching in six patterns at three densities, and its color comes from a palette of 13: white, six greys and six pastels. A link is routed as an elbow along the grid lines, a straight line or a curve, and drawn solid, dashed or dotted. It can carry a label, an arrowhead at one end or both, and dots that flow toward each arrowhead. The camera is orthographic and rotates in 15° steps.
 
 The whole document is encoded in the URL hash, so the link to a diagram is also its save file. The first character of the hash names the encoding, which lets a later version change the encoding and still open every link shared before it. Export downloads the scene as a JSON file with named fields, for other programs to read. The editor was migrated from the liquidx-isograph repo in October 2026.
 
