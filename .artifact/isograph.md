@@ -1,6 +1,7 @@
 ---
 title: Isograph
 date: 2026-08
+status: released
 category: product
 tags:
   - web
@@ -16,7 +17,7 @@ media:
     alt: Isometric scene on a cream grid with a lilac plane holding a blue box and a hatched peach cylinder, and a green plane holding a dotted green cube, a pink sphere and a yellow pyramid, joined by dotted, solid and dashed labelled links
 credits:
   - liquidx
-unconfirmed: [date]
+unconfirmed: [date, status]
 ---
 
 Every block in an Isograph diagram has a square footprint and sits on the lines of a grid. A block is a box, a cylinder, a sphere or a pyramid, from 1 to 12 cells wide and up to 24 high, though a sphere is always as tall as it is wide. Colored planes lie on the floor under the blocks to group them. Links run between two blocks and attach at a block's center, at an edge or at a corner.
