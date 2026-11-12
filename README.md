@@ -215,6 +215,10 @@ temporary; they are listed here so nobody has to rediscover them.
   so run `pnpm test` and `pnpm run typecheck` before deploying. The Worker isn't yet listed in
   `arfct/internal`'s `deployments.md`.
 
+## Catalogue
+
+The catalogue entry for this project lives in [`.artifact/isograph.md`](.artifact/isograph.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
