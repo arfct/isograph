@@ -3,6 +3,9 @@
 	   The Maps/Sets here track Three.js objects and must stay non-reactive; the DOM calls mount the WebGL canvas. */
 	import * as THREE from 'three';
 	import { onMount } from 'svelte';
+	import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+	import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
+	import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 	import {
 		doc,
 		ui,
@@ -79,6 +82,8 @@
 	const Z_LABEL = 0.06;
 	const Z_LINK = 0.08;
 	const Z_SEL = 0.1;
+	/** Width in CSS pixels of the heavier stroke that traces a selected block's or plane's own edges. */
+	const SEL_WIDTH = 2.5;
 	const HANDLE_RADIUS = 0.075; // world units at zoom 1; see handleScale()
 	const HANDLE_HIT_RADIUS = 0.25; // invisible pick target, larger than the handles so they're easy to grab
 	const PYRAMID_RADIUS = 0.12; // centre to base corner
@@ -179,6 +184,7 @@
 		return lineSegments([0, -A, 0, 0, A, 0, -A, 0, 0, A, 0, 0], 0xb3b0a1, 0.002);
 	}
 
+	/** Dashed floor rectangle, used for the shape tool's footprint and the plane tool's drag preview. */
 	function ring(x0: number, y0: number, x1: number, y1: number, z: number, color = INK) {
 		const pts = [
 			new THREE.Vector3(x0, y0, z),
@@ -242,11 +248,23 @@
 		scene.add(new THREE.AmbientLight(0xffffff, 1.4), sun);
 
 		const edgeMat = new THREE.LineBasicMaterial({ color: INK });
+		/** Selection stroke: the shape's own outline drawn heavier, so it sits exactly on the shape. */
+		const selMat = new LineMaterial({ color: INK, linewidth: SEL_WIDTH });
 		const blockObjs = new Map<
 			number,
-			{ group: THREE.Group; mesh: THREE.Mesh; sig: string; drop?: number; sil?: Silhouette }
+			{
+				group: THREE.Group;
+				mesh: THREE.Mesh;
+				sig: string;
+				drop?: number;
+				sil?: Silhouette;
+				sel: THREE.Object3D[];
+			}
 		>();
-		const planeObjs = new Map<number, { group: THREE.Group; mesh: THREE.Mesh; sig: string }>();
+		const planeObjs = new Map<
+			number,
+			{ group: THREE.Group; mesh: THREE.Mesh; sig: string; sel: THREE.Object3D[] }
+		>();
 		const linkObjs = new Map<
 			number,
 			{ group: THREE.Group; pickables: THREE.Object3D[]; flows: Flow[]; sig: string }
@@ -264,6 +282,7 @@
 			width = Math.max(1, container.clientWidth);
 			height = Math.max(1, container.clientHeight);
 			renderer.setSize(width, height, false);
+			selMat.resolution.set(width, height);
 			el.style.width = '100%';
 			el.style.height = '100%';
 			applyCamera();
@@ -383,6 +402,33 @@
 			}
 		}
 
+		/** Line vertices as segment pairs; a Line or LineLoop becomes the segments it draws. */
+		function segmentPositions(line: THREE.Line): number[] {
+			const pos = line.geometry.getAttribute('position') as THREE.BufferAttribute;
+			const v = (i: number) => [pos.getX(i), pos.getY(i), pos.getZ(i)];
+			if ((line as THREE.LineSegments).isLineSegments) {
+				const out: number[] = [];
+				for (let i = 0; i < pos.count; i++) out.push(...v(i));
+				return out;
+			}
+			const out: number[] = [];
+			const n = (line as THREE.LineLoop).isLineLoop ? pos.count : pos.count - 1;
+			for (let i = 0; i < n; i++) out.push(...v(i), ...v((i + 1) % pos.count));
+			return out;
+		}
+
+		/**
+		 * A hidden heavy copy of an outline, parented to it so it shares its pull, drop and turn.
+		 * Shown while the item is selected.
+		 */
+		function selectionStroke(line: THREE.Line): LineSegments2 {
+			const geo = new LineSegmentsGeometry().setPositions(segmentPositions(line));
+			const stroke = new LineSegments2(geo, selMat);
+			stroke.visible = false;
+			line.add(stroke);
+			return stroke;
+		}
+
 		/** Fixed edge lines for a shape, in footprint space. Curved shapes only get their rims. */
 		function shapeEdges(b: Block, geo: THREE.BufferGeometry, mat: THREE.Material) {
 			if (b.shape === 'sphere') return null;
@@ -440,6 +486,8 @@
 			pos.setXYZ(2, -x, -y, 0);
 			pos.setXYZ(3, -x, -y, s.h);
 			pos.needsUpdate = true;
+			const stroke = s.line.children[0] as LineSegments2 | undefined;
+			if (stroke?.visible) stroke.geometry.setPositions(segmentPositions(s.line));
 		}
 
 		function buildBlock(b: Block) {
@@ -448,10 +496,17 @@
 			const mesh = new THREE.Mesh(geo, blockMaterials(b));
 			mesh.userData = { kind: 'block', id: b.id };
 			group.add(mesh);
+			const sel: THREE.Object3D[] = [];
 			const edges = shapeEdges(b, geo, edgeMat);
-			if (edges) group.add(edges);
+			if (edges) {
+				group.add(edges);
+				sel.push(selectionStroke(edges));
+			}
 			const sil = buildSilhouette(b, edgeMat) ?? undefined;
-			if (sil) group.add(sil.line);
+			if (sil) {
+				group.add(sil.line);
+				sel.push(selectionStroke(sil.line));
+			}
 
 			const text = b.label.trim();
 			if (text) {
@@ -460,7 +515,7 @@
 				group.add(lm);
 			}
 			group.position.set(b.x, b.y, 0);
-			return { group, mesh, sil };
+			return { group, mesh, sil, sel };
 		}
 
 		function buildPlane(p: Plane) {
@@ -485,6 +540,7 @@
 			);
 			outline.userData.pull = true;
 			group.add(mesh, outline);
+			const sel = [selectionStroke(outline)];
 			const text = p.label.trim();
 			if (text) {
 				const { mesh: lm } = labelMesh(text, p.labelSize);
@@ -492,7 +548,7 @@
 				group.add(lm);
 			}
 			group.position.set(p.x, p.y, 0);
-			return { group, mesh };
+			return { group, mesh, sel };
 		}
 
 		/** The floor route of a link, honouring its style, bend and anchors. */
@@ -765,19 +821,9 @@
 			}
 			handles.length = 0;
 			hitAreas.length = 0;
-			const pad = 0.12;
+			// Blocks and planes show selection as a heavier outline, toggled in the render loop.
 			for (const s of ui.selection) {
-				if (s.kind === 'block') {
-					const b = doc.blocks.find((x) => x.id === s.id);
-					if (b)
-						selectionGroup.add(
-							ring(b.x - pad, b.y - pad, b.x + b.size + pad, b.y + b.size + pad, Z_SEL)
-						);
-				} else if (s.kind === 'plane') {
-					const p = doc.planes.find((x) => x.id === s.id);
-					if (p)
-						selectionGroup.add(ring(p.x - pad, p.y - pad, p.x + p.w + pad, p.y + p.h + pad, Z_SEL));
-				} else {
+				if (s.kind === 'link') {
 					const l = doc.links.find((x) => x.id === s.id);
 					const a = l && doc.blocks.find((x) => x.id === l.a);
 					const b = l && doc.blocks.find((x) => x.id === l.b);
@@ -802,13 +848,6 @@
 				} else if (p) {
 					CORNERS.forEach(([fx, fy], i) => buildHandle(p.x + fx * p.w, p.y + fy * p.h, Z_SEL, i));
 				}
-			}
-			if (ui.linkFrom != null) {
-				const b = doc.blocks.find((x) => x.id === ui.linkFrom);
-				if (b)
-					selectionGroup.add(
-						ring(b.x - pad, b.y - pad, b.x + b.size + pad, b.y + b.size + pad, Z_SEL)
-					);
 			}
 		});
 
@@ -1433,7 +1472,10 @@
 			camera.updateMatrixWorld();
 			const hs = handleScale(doc.camera.zoom);
 			for (const h of handles) h.scale.setScalar(hs);
-			for (const o of blockObjs.values()) {
+			// The link tool's first block shows as selected until the link is made.
+			for (const [id, o] of blockObjs) {
+				const on = ui.linkFrom === id || isSelected({ kind: 'block', id });
+				for (const s of o.sel) s.visible = on;
 				if (o.sil) updateSilhouette(o.sil);
 				if (o.drop === undefined) continue;
 				const t = (now - o.drop) / DROP_MS;
@@ -1443,6 +1485,10 @@
 				} else {
 					o.group.position.z = DROP_HEIGHT * (1 - easeOutBounce(Math.max(0, t)));
 				}
+			}
+			for (const [id, o] of planeObjs) {
+				const on = isSelected({ kind: 'plane', id });
+				for (const s of o.sel) s.visible = on;
 			}
 			if (ghostGroup.userData.sil) updateSilhouette(ghostGroup.userData.sil as Silhouette);
 			for (const o of linkObjs.values()) for (const f of o.flows) updateFlow(f, now);
