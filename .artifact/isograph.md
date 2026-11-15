@@ -2,7 +2,7 @@
 title: Isograph
 date: 2026-08
 status: released
-category: product
+category: web-tool
 tags:
   - web
 url: https://isograph.fyi
