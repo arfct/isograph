@@ -206,9 +206,9 @@ temporary; they are listed here so nobody has to rediscover them.
   without it "drifts silently"
   ([standards](https://github.com/arfct/ops/blob/main/primer/standards.md#formatting--linting)).
   Until then `pnpm run lint`, `pnpm run typecheck` and `pnpm test` are habit, not enforcement.
-- **No Linear project or issues.** Work tracking lives in the `arfct` Linear workspace
-  ([linear](https://github.com/arfct/ops/blob/main/primer/linear.md)); nothing has been filed
-  for this project yet.
+- **Issues are turned off.** The Primer tracks work in GitHub Issues
+  ([issues](https://github.com/arfct/ops/blob/main/primer/issues.md)), but this repo has them
+  turned off, so nothing has been filed for this project yet.
 - **Deploys from a laptop, no CI gate.** `pnpm run deploy` ships whatever is checked out; there
   is no GitHub Actions run to check first
   ([deployment](https://github.com/arfct/ops/blob/main/primer/deployment.md#dont-deploy-past-a-red-ci)),
